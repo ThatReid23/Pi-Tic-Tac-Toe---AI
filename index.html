@@ -1,0 +1,754 @@
+<!-- 
+Pi Tic-Tac-Toe © 2025 @YourPiUsername (or your real name)
+All commercial rights reserved. 
+You may view and run this code for personal use only.
+No redistribution or commercial use without explicit written permission.
+-->
+
+!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🪙 Pi Tic Tac Toe - AI + 1 Pi Payments! (Undo & Exclusive LB)</title>
+    <script src="https://sdk.minepi.com/pi-sdk.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+    <script>Pi.init({ version: "2.0", sandbox: true });</script>
+    <style>
+        :root { --n: 3; }
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        #game-setup, #wallet-section, #stats-section {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            margin-bottom: 20px;
+            text-align: center;
+            width: 90%;
+            max-width: 400px;
+        }
+        #mode-select {
+            padding: 12px;
+            font-size: 18px;
+            border: none;
+            border-radius: 25px;
+            background: rgba(255,255,255,0.9);
+            color: #333;
+            margin-bottom: 10px;
+            cursor: pointer;
+            width: 100%;
+        }
+        #status {
+            font-size: 24px;
+            margin-bottom: 20px;
+            color: #fff;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            min-height: 40px;
+        }
+        #board {
+            display: grid;
+            grid-template-columns: repeat(var(--n), 1fr);
+            grid-template-rows: repeat(var(--n), 1fr);
+            gap: 8px;
+            max-width: min(90vw, 500px);
+            aspect-ratio: 1 / 1;
+            margin: 20px auto;
+        }
+        .cell {
+            aspect-ratio: 1;
+            background: rgba(255,255,255,0.9);
+            border: 4px solid #fff;
+            border-radius: 15px;
+            font-size: clamp(24px, 8vw, 72px);
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.2s;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        .cell:hover:not(.ai-thinking):not(.disabled) {
+            transform: scale(1.05);
+            background: #fff;
+        }
+        .cell.x { color: #e74c3c; }
+        .cell.o { color: #3498db; }
+        .cell.won {
+            background: #2ecc71 !important;
+            color: white;
+            animation: pulse 0.5s;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        .ai-thinking, .disabled { cursor: wait !important; opacity: 0.7; }
+        button {
+            padding: 12px 24px;
+            font-size: 18px;
+            margin: 5px;
+            cursor: pointer;
+            border: none;
+            border-radius: 25px;
+            background: #ff6b6b;
+            color: white;
+            transition: all 0.3s;
+            flex: 1;
+        }
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        button:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+        #connect-btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+        }
+        #connect-btn:hover:not(:disabled) {
+            background: linear-gradient(45deg, #5a67d8, #6b46c1);
+        }
+        #undo-btn, #submit-btn {
+            background: linear-gradient(45deg, #f39c12, #e67e22);
+        }
+        #lb-btn {
+            background: linear-gradient(45deg, #2ecc71, #27ae60);
+            width: 100%;
+        }
+        #address, #personal-stats {
+            margin-top: 10px;
+            font-family: monospace;
+            font-size: 14px;
+            word-break: break-all;
+            color: #ecf0f1;
+        }
+        #controls {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            max-width: 500px;
+        }
+        #leaderboard-section {
+            display: none;
+            background: rgba(0,0,0,0.5);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+        #lb-content {
+            background: rgba(255,255,255,0.95);
+            color: #333;
+            padding: 30px;
+            border-radius: 20px;
+            max-width: 90vw;
+            max-height: 80vh;
+            overflow: auto;
+            backdrop-filter: blur(20px);
+        }
+        #lb-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        #lb-table th, #lb-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        #lb-table th {
+            background: #667eea;
+            color: white;
+        }
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .close-lb {
+            background: #e74c3c;
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🪙 Pi Tic Tac Toe + 🤖 AI + 💰 1 Pi Features!</h1>
+    <p style="text-align: center; max-width: 400px; opacity: 0.9;">Undo mistakes (1 Pi), Submit wins to Exclusive LB (1 Pi), Ad-Free! 🎮</p>
+    
+    <div id="game-setup">
+        <label for="mode-select" style="margin-bottom: 10px; font-size: 18px;">Game Mode:</label>
+        <select id="mode-select">
+            <option value="hotseat">👫 Play with Friend (3x3)</option>
+            <option value="easy">🤖 vs AI Easy (3x3 ~1/3 win)</option>
+            <option value="mid">🤖 vs AI Medium (3x3)</option>
+            <option value="hard">🤖 vs AI Hard (3x3)</option>
+            <option value="unbeatable">🤖 vs AI Unbeatable (5x5 ~1/100 win! 💀)</option>
+        </select>
+    </div>
+
+    <div id="wallet-section">
+        <button id="connect-btn">Connect Pi Account</button>
+        <div id="address"></div>
+    </div>
+
+    <div id="stats-section" style="display:none;">
+        <div id="personal-stats">Connect to see your stats!</div>
+    </div>
+
+    <div id="status">Player X's Turn</div>
+    <div id="board"></div>
+    <div id="controls">
+        <button id="undo-btn" style="display:none; flex: none; min-width: 200px;">Undo Last Move - 1 Pi 🪙</button>
+        <button id="submit-btn" style="display:none; flex: none; min-width: 250px;">Submit Win to Exclusive LB - 1 Pi 🏆</button>
+        <button id="reset-btn">New Game</button>
+        <button id="lb-btn">🏆 View Leaderboard</button>
+    </div>
+
+    <div id="leaderboard-section">
+        <div id="lb-content">
+            <button class="close-lb" onclick="document.getElementById('leaderboard-section').style.display='none'">❌ Close</button>
+            <h2>🏆 Exclusive Pi LB (Paid Wins Only!)</h2>
+            <p>Top players by total paid win score (Unbeatable=20pts!)</p>
+            <table id="lb-table">
+                <thead><tr><th>Rank</th><th>@Player</th><th>Score</th></tr></thead>
+                <tbody></tbody>
+            </table>
+            <p style="font-size:12px; opacity:0.7;">Submit your wins after victory!</p>
+        </div>
+    </div>
+
+    <p style="margin-top: 20px; font-size: 12px; opacity: 0.7;">Made with ❤️ for Pi Network | Minimax AI + Firebase LB</p>
+
+    <script>
+        // 🔥 PASTE YOUR FIREBASE CONFIG HERE (2min setup):
+        // 1. firebase.google.com → Create Project → Realtime Database → Start in TEST MODE
+        // 2. Copy config → Replace below → Deploy Rules: {".read":true,".write":true}
+        const firebaseConfig = {
+            // apiKey: "YOUR_API_KEY",
+            // authDomain: "your-project.firebaseapp.com",
+            // databaseURL: "https://your-project-default-rtdb.firebaseio.com",
+            // projectId: "your-project",
+            // storageBucket: "your-project.appspot.com",
+            // messagingSenderId: "123",
+            // appId: "your-app-id"
+        };
+        let db;
+        try {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.database();
+        } catch(e) {
+            console.warn('Firebase config missing - LB disabled');
+        }
+
+        let N = 3;
+        let boardSize;
+        let board = [];
+        let winningConditions = [];
+        let currentPlayer = 'X';
+        let gameActive = true;
+        let piUser = null;
+        let gameMode = 'hotseat';
+        let humanPlayer = 'X';
+        let aiPlayer = 'O';
+        let history = []; // [{index, player}]
+        let aiTimeoutId = null;
+        let statsKey = null;
+
+        const mistakeProbs = {
+            easy: 0.65,
+            mid: 0.35,
+            hard: 0.08,
+            unbeatable: 0.00
+        };
+        const scoreValues = {
+            easy: 1,
+            mid: 3,
+            hard: 5,
+            unbeatable: 20
+        };
+
+        const statusDiv = document.getElementById('status');
+        const boardDiv = document.getElementById('board');
+        const connectBtn = document.getElementById('connect-btn');
+        const addressDiv = document.getElementById('address');
+        const resetBtn = document.getElementById('reset-btn');
+        const modeSelect = document.getElementById('mode-select');
+        const undoBtn = document.getElementById('undo-btn');
+        const submitBtn = document.getElementById('submit-btn');
+        const lbBtn = document.getElementById('lb-btn');
+        const statsSection = document.getElementById('stats-section');
+        const personalStatsDiv = document.getElementById('personal-stats');
+        const lbSection = document.getElementById('leaderboard-section');
+
+        function generateWinningConditions(n) {
+            const wins = [];
+            // Rows
+            for (let r = 0; r < n; r++) {
+                const row = [];
+                for (let c = 0; c < n; c++) row.push(r * n + c);
+                wins.push(row);
+            }
+            // Cols
+            for (let c = 0; c < n; c++) {
+                const col = [];
+                for (let r = 0; r < n; r++) col.push(r * n + c);
+                wins.push(col);
+            }
+            // Main diag
+            const diag1 = [];
+            for (let i = 0; i < n; i++) diag1.push(i * n + i);
+            wins.push(diag1);
+            // Anti diag
+            const diag2 = [];
+            for (let i = 0; i < n; i++) diag2.push(i * n + (n - 1 - i));
+            wins.push(diag2);
+            return wins;
+        }
+
+        function checkWinner(boardState) {
+            for (let cond of winningConditions) {
+                const first = boardState[cond[0]];
+                if (first && cond.every(i => boardState[i] === first)) {
+                    return first;
+                }
+            }
+            return null;
+        }
+
+        function isBoardFull(boardState) {
+            return boardState.every(cell => cell != null);
+        }
+
+        function evaluate(boardState, aiPlyr) {
+            const opp = humanPlayer;
+            let score = 0;
+            // Center bonus
+            const centerIdx = Math.floor(boardSize / 2);
+            if (boardState[centerIdx] === aiPlyr) score += 10;
+            else if (boardState[centerIdx] === opp) score -= 10;
+            // Piece count
+            const aiCount = boardState.filter(c => c === aiPlyr).length;
+            const oppCount = boardState.filter(c => c === opp).length;
+            score += (aiCount - oppCount) * 3;
+            return score;
+        }
+
+        function minimax(newBoard, depth, isMaximizing, alpha, beta, aiPlyr, maxDepth) {
+            const result = checkWinner(newBoard);
+            if (result === aiPlyr) return 100 - depth;
+            if (result === humanPlayer) return depth - 100;
+            if (isBoardFull(newBoard)) return 0;
+            if (depth >= maxDepth) return evaluate(newBoard, aiPlyr);
+
+            const emptySpots = [];
+            for (let i = 0; i < boardSize; i++) {
+                if (newBoard[i] === null) emptySpots.push(i);
+            }
+
+            if (isMaximizing) {
+                let maxEval = -Infinity;
+                for (let i of emptySpots) {
+                    newBoard[i] = aiPlyr;
+                    let evalScore = minimax(newBoard, depth + 1, false, alpha, beta, aiPlyr, maxDepth);
+                    newBoard[i] = null;
+                    maxEval = Math.max(maxEval, evalScore);
+                    alpha = Math.max(alpha, maxEval);
+                    if (beta <= alpha) break;
+                }
+                return maxEval;
+            } else {
+                let minEval = Infinity;
+                for (let i of emptySpots) {
+                    newBoard[i] = humanPlayer;
+                    let evalScore = minimax(newBoard, depth + 1, true, alpha, beta, aiPlyr, maxDepth);
+                    newBoard[i] = null;
+                    minEval = Math.min(minEval, evalScore);
+                    beta = Math.min(beta, minEval);
+                    if (beta <= alpha) break;
+                }
+                return minEval;
+            }
+        }
+
+        function getBestMove(tempBoard, aiPlyr, maxDepth) {
+            let bestScore = -Infinity;
+            let bestMove = -1;
+            for (let i = 0; i < boardSize; i++) {
+                if (tempBoard[i] === null) {
+                    tempBoard[i] = aiPlyr;
+                    const score = minimax(tempBoard, 0, false, -Infinity, Infinity, aiPlyr, maxDepth);
+                    tempBoard[i] = null;
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestMove = i;
+                    }
+                }
+            }
+            return bestMove;
+        }
+
+        function aiMove() {
+            if (!gameActive) return;
+            const prefix = piUser ? `@${piUser} - ` : '';
+            statusDiv.textContent = prefix + '🤖 AI Thinking...';
+            boardDiv.querySelectorAll('.cell').forEach(cell => cell.classList.add('ai-thinking'));
+
+            const emptySpots = [];
+            for (let i = 0; i < boardSize; i++) {
+                if (board[i] === null) emptySpots.push(i);
+            }
+            if (emptySpots.length === 0) return;
+
+            let moveIndex;
+            const difficulty = gameMode;
+            const maxDepth = (N === 3) ? 99 : 8;
+            const mistakeChance = mistakeProbs[difficulty] || 0;
+
+            if (Math.random() < mistakeChance) {
+                moveIndex = emptySpots[Math.floor(Math.random() * emptySpots.length)];
+            } else {
+                moveIndex = getBestMove(board.slice(), aiPlayer, maxDepth);
+            }
+
+            // Visual delay
+            setTimeout(() => {
+                if (!gameActive) return;
+                board[moveIndex] = aiPlayer;
+                const cell = document.querySelector(`[data-index="${moveIndex}"]`);
+                cell.textContent = aiPlayer;
+                cell.classList.add(aiPlayer.toLowerCase());
+                history.push({index: moveIndex, player: aiPlayer});
+
+                const winner = checkWinner(board);
+                if (winner) {
+                    const prefix = piUser ? `@${piUser} - ` : '';
+                    statusDiv.textContent = `${prefix}🤖 AI ${aiPlayer} Wins! 😤`;
+                    gameActive = false;
+                    highlightWin();
+                    boardDiv.querySelectorAll('.cell').forEach(c => c.classList.add('disabled'));
+                    submitBtn.style.display = 'none';
+                    undoBtn.style.display = 'none';
+                    return;
+                }
+
+                if (isBoardFull(board)) {
+                    const prefix = piUser ? `@${piUser} - ` : '';
+                    statusDiv.textContent = `${prefix}It's a Draw! 🤝`;
+                    gameActive = false;
+                    boardDiv.querySelectorAll('.cell').forEach(c => c.classList.add('disabled'));
+                    submitBtn.style.display = 'none';
+                    undoBtn.style.display = 'none';
+                    return;
+                }
+
+                currentPlayer = humanPlayer;
+                updateStatus();
+                boardDiv.querySelectorAll('.cell').forEach(cell => cell.classList.remove('ai-thinking'));
+            }, 500 + Math.random() * 500);
+        }
+
+        function updateStatus() {
+            const prefix = piUser ? `@${piUser} - ` : '';
+            if (gameMode !== 'hotseat' && currentPlayer === aiPlayer) {
+                statusDiv.textContent = prefix + "🤖 AI's Turn";
+            } else {
+                statusDiv.textContent = prefix + `Player ${currentPlayer}'s Turn`;
+            }
+        }
+
+        function initBoard() {
+            boardDiv.innerHTML = '';
+            board = new Array(boardSize).fill(null);
+            history = [];
+            for (let i = 0; i < boardSize; i++) {
+                const cell = document.createElement('div');
+                cell.classList.add('cell');
+                cell.dataset.index = i;
+                cell.addEventListener('click', handleCellClick);
+                boardDiv.appendChild(cell);
+            }
+            boardDiv.querySelectorAll('.cell').forEach(c => {
+                c.classList.remove('x', 'o', 'won', 'ai-thinking', 'disabled');
+                c.textContent = '';
+            });
+        }
+
+        function handleCellClick(e) {
+            if (!gameActive || currentPlayer !== humanPlayer) return;
+            const index = parseInt(e.target.dataset.index);
+            if (board[index] != null) return;
+
+            board[index] = currentPlayer;
+            e.target.textContent = currentPlayer;
+            e.target.classList.add(currentPlayer.toLowerCase());
+            history.push({index, player: currentPlayer});
+
+            const winner = checkWinner(board);
+            if (winner) {
+                statusDiv.textContent += ` Player ${currentPlayer} Wins! 🎉`;
+                gameActive = false;
+                highlightWin();
+                boardDiv.querySelectorAll('.cell').forEach(c => c.classList.add('disabled'));
+                if (winner === humanPlayer && piUser && db) {
+                    submitBtn.style.display = 'inline-block';
+                }
+                undoBtn.style.display = 'none';
+                return;
+            }
+
+            if (isBoardFull(board)) {
+                statusDiv.textContent = "It's a Draw! 🤝";
+                gameActive = false;
+                boardDiv.querySelectorAll('.cell').forEach(c => c.classList.add('disabled'));
+                undoBtn.style.display = 'none';
+                submitBtn.style.display = 'none';
+                return;
+            }
+
+            currentPlayer = aiPlayer;
+            updateStatus();
+
+            if (gameMode !== 'hotseat') {
+                // 1.5s window for undo
+                undoBtn.style.display = 'inline-block';
+                aiTimeoutId = setTimeout(() => {
+                    aiTimeoutId = null;
+                    undoBtn.style.display = 'none';
+                    aiMove();
+                }, 1500);
+            }
+        }
+
+        function highlightWin() {
+            const winner = checkWinner(board);
+            if (!winner) return;
+            for (let cond of winningConditions) {
+                const first = board[cond[0]];
+                if (first === winner && cond.every(i => board[i] === winner)) {
+                    cond.forEach(i => {
+                        const cell = document.querySelector(`[data-index="${i}"]`);
+                        if (cell) cell.classList.add('won');
+                    });
+                    break; // First win line
+                }
+            }
+        }
+
+        function doUndo() {
+            if (history.length === 0) return;
+            const lastMove = history.pop();
+            board[lastMove.index] = null;
+            const cell = document.querySelector(`[data-index="${lastMove.index}"]`);
+            cell.textContent = '';
+            cell.classList.remove('x', 'o');
+            currentPlayer = lastMove.player;
+            gameActive = true;
+            updateStatus();
+            undoBtn.style.display = 'none';
+            if (aiTimeoutId) {
+                clearTimeout(aiTimeoutId);
+                aiTimeoutId = null;
+            }
+            submitBtn.style.display = 'none';
+            boardDiv.querySelectorAll('.cell').forEach(c => c.classList.remove('disabled'));
+        }
+
+        async function payForAction(action) {
+            if (!piUser || typeof window.Pi === 'undefined') {
+                alert('Connect Pi first!');
+                return false;
+            }
+            try {
+                const paymentData = {
+                    amount: 1,
+                    memo: `Pi Tic Tac Toe: ${action}`,
+                    metadata: { user: piUser, game: 'tictactoe', action }
+                };
+                const paymentCallbacks = {
+                    onReadyForServerApproval: (paymentId) => {
+                        // TODO: Send paymentId to your server for /approve
+                        console.log('Ready for server approval:', paymentId);
+                    },
+                    onReadyForServerCompletion: (paymentId, txid) => {
+                        // TODO: Verify txid on server, then /complete
+                        console.log('Ready for completion:', paymentId, txid);
+                    },
+                    onPaymentSuccess: async (payment, txid) => {
+                        console.log('Payment success:', payment, txid);
+                        if (action === 'undo') {
+                            doUndo();
+                        } else if (action === 'submit') {
+                            submitToLB();
+                        }
+                    },
+                    onCancel: () => console.log('Payment cancelled'),
+                    onError: (error) => {
+                        console.error('Payment error:', error);
+                        alert('Payment failed: ' + error.message);
+                    }
+                };
+                await window.Pi.createPayment(paymentData, paymentCallbacks);
+            } catch (error) {
+                console.error('Payment init failed:', error);
+                alert('Payment failed. Try again.');
+            }
+        }
+
+        function submitToLB() {
+            if (!db) {
+                alert('Setup Firebase for LB!');
+                return;
+            }
+            const diffScore = scoreValues[gameMode] || 1;
+            db.ref('leaderboard').push({
+                username: piUser,
+                score: diffScore,
+                difficulty: gameMode,
+                time: Date.now()
+            }).then(() => {
+                submitBtn.textContent = 'Submitted! ✅';
+                submitBtn.disabled = true;
+                updatePersonalStats();
+                statusDiv.textContent += ' | Submitted to LB! 🏆';
+                setTimeout(() => {
+                    submitBtn.style.display = 'none';
+                    submitBtn.textContent = 'Submit Win to Exclusive LB - 1 Pi 🏆';
+                    submitBtn.disabled = false;
+                }, 3000);
+            }).catch(e => alert('Submit failed: ' + e.message));
+        }
+
+        async function showLeaderboard() {
+            if (!db) {
+                alert('Setup Firebase config first!');
+                return;
+            }
+            const scores = {};
+            try {
+                const snapshot = await db.ref('leaderboard').limitToLast(1000).once('value');
+                snapshot.forEach(child => {
+                    const data = child.val();
+                    scores[data.username || 'anon'] = (scores[data.username || 'anon'] || 0) + (data.score || 1);
+                });
+                const topScores = Object.entries(scores)
+                    .sort(([,a], [,b]) => b - a)
+                    .slice(0, 20)
+                    .map(([user, score], idx) => ({ user, score, rank: idx+1 }));
+                const tbody = document.querySelector('#lb-table tbody');
+                tbody.innerHTML = '';
+                topScores.forEach(entry => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `<td>${entry.rank}.</td><td>@${entry.user}</td><td>${entry.score}</td>`;
+                    tbody.appendChild(tr);
+                });
+                lbSection.style.display = 'flex';
+            } catch(e) {
+                alert('LB load failed: ' + e.message);
+            }
+        }
+
+        function updatePersonalStats() {
+            if (!statsKey || !piUser) return;
+            const stats = JSON.parse(localStorage.getItem(statsKey) || '{}');
+            let total = 0;
+            let detail = '';
+            ['easy', 'mid', 'hard', 'unbeatable'].forEach(d => {
+                const w = stats[`wins_${d}`] || 0;
+                if (w > 0) {
+                    total += w;
+                    detail += `${d}: ${w} `;
+                }
+            });
+            personalStatsDiv.textContent = `Total Wins: ${total} (${detail.trim() || 'none yet'})`;
+        }
+
+        function saveWin() {
+            if (!statsKey) return;
+            const stats = JSON.parse(localStorage.getItem(statsKey) || '{}');
+            stats.wins = (stats.wins || 0) + 1;
+            stats[`wins_${gameMode}`] = (stats[`wins_${gameMode}`] || 0) + 1;
+            localStorage.setItem(statsKey, JSON.stringify(stats));
+            updatePersonalStats();
+        }
+
+        function resetGame() {
+            if (aiTimeoutId) {
+                clearTimeout(aiTimeoutId);
+                aiTimeoutId = null;
+            }
+            currentPlayer = humanPlayer;
+            gameActive = true;
+            gameMode = modeSelect.value;
+            N = (gameMode === 'unbeatable') ? 5 : 3;
+            document.documentElement.style.setProperty('--n', N);
+            boardSize = N * N;
+            winningConditions = generateWinningConditions(N);
+            initBoard();
+            updateStatus();
+            undoBtn.style.display = 'none';
+            submitBtn.style.display = 'none';
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Submit Win to Exclusive LB - 1 Pi 🏆';
+            boardDiv.querySelectorAll('.cell').forEach(c => c.classList.remove('disabled'));
+            if (gameMode !== 'hotseat' && currentPlayer === aiPlayer) aiMove();
+        }
+
+        async function connectPi() {
+            if (typeof window.Pi === 'undefined') {
+                alert('Open in Pi Browser!');
+                return;
+            }
+            try {
+                const scopes = ['username'];
+                const onIncompletePaymentFound = () => {};
+                const auth = await window.Pi.authenticate(scopes, onIncompletePaymentFound);
+                piUser = auth.user.username;
+                addressDiv.textContent = `Connected: @${piUser}`;
+                connectBtn.textContent = 'Pi Connected ✅';
+                connectBtn.disabled = true;
+                statsKey = `piTicTacToeStats_${piUser.replace(/[^a-zA-Z0-9]/g, '')}`;
+                updatePersonalStats();
+                statsSection.style.display = 'block';
+                updateStatus();
+            } catch (error) {
+                console.error('Pi auth failed:', error);
+                alert('Auth failed. Approve in Pi Browser.');
+            }
+        }
+
+        // Event listeners
+        resetBtn.addEventListener('click', resetGame);
+        modeSelect.addEventListener('change', resetGame);
+        connectBtn.addEventListener('click', connectPi);
+        undoBtn.addEventListener('click', () => payForAction('undo'));
+        submitBtn.addEventListener('click', () => payForAction('submit'));
+        lbBtn.addEventListener('click', showLeaderboard);
+
+        // Init
+        resetGame();
+    </script>
+</body>
+</html>
