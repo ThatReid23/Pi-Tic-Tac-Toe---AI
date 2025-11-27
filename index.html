@@ -246,15 +246,15 @@ No redistribution or commercial use without explicit written permission.
         // 🔥 PASTE YOUR FIREBASE CONFIG HERE (2min setup):
         // 1. firebase.google.com → Create Project → Realtime Database → Start in TEST MODE
         // 2. Copy config → Replace below → Deploy Rules: {".read":true,".write":true}
-        const firebaseConfig = {
-            // apiKey: "YOUR_API_KEY",
-            // authDomain: "your-project.firebaseapp.com",
-            // databaseURL: "https://your-project-default-rtdb.firebaseio.com",
-            // projectId: "your-project",
-            // storageBucket: "your-project.appspot.com",
-            // messagingSenderId: "123",
-            // appId: "your-app-id"
-        };
+const firebaseConfig = {
+  apiKey: "AIzaSyDxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  authDomain: "pi-tictactoe-leaderboard.firebaseapp.com",
+  databaseURL: "https://pi-tictactoe-leaderboard-default-rtdb2Uf26vH9DDFchSE41LbBuO0dHx0CqMB1kdKP00qN.firebaseio.com",
+  projectId: "pi-tictactoe-leaderboard",
+  storageBucket: "pi-tictactoe-leaderboard.appspot.com",
+  messagingSenderId: "1234567890",
+  appId: "1:1234567890:web:abcdef1234567890"
+};
         let db;
         try {
             firebase.initializeApp(firebaseConfig);
@@ -751,4 +751,5 @@ No redistribution or commercial use without explicit written permission.
         resetGame();
     </script>
 </body>
+
 </html>
